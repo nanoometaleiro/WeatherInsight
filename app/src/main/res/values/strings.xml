@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Weather Insight</string>
+    <string name="action_settings">Settings</string>
+</resources>
