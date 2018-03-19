@@ -26,6 +26,8 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+        WeatherContentManager wm = new WeatherContentManager(getApplicationContext());
+        wm.refresh();
     }
 
     @Override
