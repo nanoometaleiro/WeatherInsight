@@ -1,9 +1,16 @@
 package is.stokkur.weatherinsight;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.provider.Settings;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.content.PermissionChecker;
 import android.util.Log;
 
 import org.w3c.dom.Document;
@@ -14,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.Permission;
 import java.util.function.Function;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -59,15 +67,15 @@ public class WeatherContentManager {
     private LocationManager locationManager;
     private Location location;
     private WeatherData weatherData;
-    private WeatherAsyncTask weatherTask;
 
     private class WeatherAsyncTask extends AsyncTask<Void, Void, WeatherData> {
         @Override
         protected WeatherData doInBackground(Void... params) {
             WeatherData wd = new WeatherData();
             try {
-                URL url = new URL("http://api.openweathermap.org/data/2.5/forecast?appid="
-                        + APP_ID + "&mode=xml&lat=" + String.valueOf(latitude) + "&lon=" + String.valueOf(longitude));
+                URL url = new URL("http://api.openweathermap.org/data/2.5/weather?appid="
+                        + APP_ID + "&units=metric&mode=xml&lat=" + String.valueOf(latitude)
+                        + "&lon=" + String.valueOf(longitude));
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setReadTimeout(12000);
                 conn.setConnectTimeout(15000);
@@ -94,6 +102,39 @@ public class WeatherContentManager {
                 wd.pressure = "100psi";
                 wd.description = "Windy";
                 wd.humidity = "83%";
+                wd.wind = "33 m/s NW";
+
+                URL url_forecast = new URL("http://api.openweathermap.org/data/2.5/forecast?appid="
+                        + APP_ID + "&units=metric&mode=xml&lat=" + String.valueOf(latitude)
+                        + "&lon=" + String.valueOf(longitude));
+                HttpURLConnection conn2 = (HttpURLConnection) url_forecast.openConnection();
+                conn2.setReadTimeout(12000);
+                conn2.setConnectTimeout(15000);
+                conn2.setRequestMethod("GET");
+
+                BufferedReader br2 = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb2 = new StringBuilder();
+                String line_f;
+                while ((line_f = br2.readLine()) != null) {
+                    sb2.append(line_f + "\n");
+                }
+                br.close();
+                String response_f = sb2.toString();
+
+                Log.d("DBG", response_f);
+
+                Document dom_f = dBuilder.parse(response_f);
+
+                // F
+                /*for (int i = 0; i < 5; i < 5)
+                {
+                    wd.location = "Miami, FL";
+                    wd.temperature = "100F";
+                    wd.pressure = "100psi";
+                    wd.description = "Windy";
+                    wd.humidity = "83%";
+                    wd.wind = "33 m/s NW";
+                }*/
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -110,10 +151,9 @@ public class WeatherContentManager {
     public WeatherContentManager (Context ctx) {
         context = ctx;
         // Setting defaults to Rvk coordinates
-        latitude = 0; //64.13548;
-        longitude = 0; //-21.89541;
+        latitude = 64.13548;
+        longitude = -21.89541;
         weatherData = new WeatherData();
-        weatherTask = new WeatherAsyncTask();
         updateLocation();
     }
 
@@ -128,7 +168,15 @@ public class WeatherContentManager {
                     .getSystemService(Context.LOCATION_SERVICE);
 
             if (locationManager != null) {
-                location = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
+                int permission = PermissionChecker.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION);
+                if (permission == PermissionChecker.PERMISSION_GRANTED) {
+                    Criteria criteria = new Criteria();
+                    criteria.setAccuracy(Criteria.ACCURACY_FINE);
+                    criteria.setCostAllowed(false);
+
+                    String provider = locationManager.getBestProvider(criteria, false);
+                    location = locationManager.getLastKnownLocation(provider);
+                }
                 if (location != null) {
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
@@ -142,6 +190,6 @@ public class WeatherContentManager {
 
     public void refresh() {
         updateLocation();
-        weatherTask.execute();
+        new WeatherAsyncTask().execute();
     }
 }

@@ -2,19 +2,61 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context="is.stokkur.weatherinsight.MainActivity"
     tools:showIn="@layout/activity_main">
 
-    <TextView
+    <!--ImageView
+        android:id="@+id/imageView2"
+        android:layout_width="wrap_content"
+        android:layout_height="170dp"
+        app:srcCompat="@drawable/title_image" /-->
+
+    <!--TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
+        android:text="Loading..."
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" /-->
 
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="vertical"
+        tools:layout_editor_absoluteX="8dp"
+        tools:layout_editor_absoluteY="8dp">
+        <ImageView
+            android:id="@+id/imageView2"
+            android:layout_width="wrap_content"
+            android:layout_height="170dp"
+            app:srcCompat="@drawable/title_image" />
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:orientation="vertical"
+            tools:layout_editor_absoluteX="8dp"
+            tools:layout_editor_absoluteY="8dp">
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+                <ImageView
+                    android:id="@+id/imageView3"
+                    android:layout_width="150dp"
+                    android:layout_height="150dp"
+                    app:srcCompat="@drawable/sunny" />
+
+            </RelativeLayout>
+
+            <GridLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+            </GridLayout>
+        </LinearLayout>
+
+    </LinearLayout>
 </android.support.constraint.ConstraintLayout>
