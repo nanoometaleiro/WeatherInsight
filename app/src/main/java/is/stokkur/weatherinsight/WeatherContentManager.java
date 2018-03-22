@@ -39,6 +39,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 /**
  * Content manager for weather data.
  * API Key: c894360e8c135f581e5f2f8bf7831bc6
+ * This classe is totally decoupled from UI
+ * elements and focus on manipulating the
+ * data obtained from the weather service
  */
 
 public class WeatherContentManager {
@@ -55,7 +58,11 @@ public class WeatherContentManager {
         @Override
         protected ForecastData doInBackground(Void... params) {
             try {
-                /* <current>
+                /*
+                This is an example of a weather message response, which is different than
+                the extended forecast message.
+
+                <current>
                     <city id="2643743" name="London">
                         <coord lon="-0.13" lat="51.51"/>
                         <country>GB</country>
@@ -76,6 +83,7 @@ public class WeatherContentManager {
                     <lastupdate value="2018-03-19T09:50:00"/>
                 </current>
                 */
+
                 URL url = new URL("http://api.openweathermap.org/data/2.5/weather?appid="
                         + APP_ID + "&units=metric&mode=xml&lat=" + String.valueOf(latitude)
                         + "&lon=" + String.valueOf(longitude));
@@ -93,7 +101,7 @@ public class WeatherContentManager {
                 br.close();
                 String response = sb.toString();
 
-                Log.d("DBG", response);
+                //Log.d("DBG", response);
 
                 DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
                 DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -102,7 +110,11 @@ public class WeatherContentManager {
 
                 NodeList ndl = dom.getElementsByTagName("temperature");
                 Element nd = (Element) ndl.item(0);
-                forecastData.current_weather.temperature = nd.getAttribute("value")+" °C";
+                forecastData.current_weather.temperature = nd.getAttribute("value");
+                forecastData.current_weather.temperature =
+                        forecastData.current_weather.temperature.substring(
+                                0,forecastData.current_weather.temperature.indexOf("."));
+                forecastData.current_weather.temperature+=" °C";
                 forecastData.current_weather.temperature_min = nd.getAttribute("min")+" °C";
                 forecastData.current_weather.temperature_max = nd.getAttribute("max")+" °C";
 
@@ -132,6 +144,9 @@ public class WeatherContentManager {
                 forecastData.current_weather.pressure = nd.getAttribute("value")+" "+nd.getAttribute("unit");
 
                 /*
+                * This is an example of the extended forecast message response from the service
+                * Note that it is truncated and show only one <time> element out of the usual 40
+                *
                 * <forecast>
                 *     <time from="2018-03-21T12:00:00" to="2018-03-21T15:00:00">
                 *         <symbol number="800" name="clear sky" var="01d"/>
@@ -162,7 +177,7 @@ public class WeatherContentManager {
                 br2.close();
                 response = sb2.toString();
 
-                Log.d("DBG", response);
+                //Log.d("DBG", response);
 
                 is = new InputSource(new StringReader(response));
                 dom = dBuilder.parse(is);
@@ -170,6 +185,7 @@ public class WeatherContentManager {
                 ndl = dom.getElementsByTagName("forecast");
                 nd = (Element) ndl.item(0);
 
+                forecastData.prolonged_forecast.clear();
                 Node currentChild = nd.getFirstChild();
                 String period;
                 while (currentChild != null) {
@@ -177,10 +193,14 @@ public class WeatherContentManager {
                         Element e = (Element) currentChild;
                         WeatherData wdx = new WeatherData();
                         period = e.getAttribute("from");
+                        period = period.replace('T',' ');
 
                         NodeList ndx = e.getElementsByTagName("temperature");
                         Element nde = (Element) ndx.item(0);
-                        wdx.temperature = nde.getAttribute("value")+" °C";
+                        wdx.temperature = nde.getAttribute("value");
+                        wdx.temperature = wdx.temperature.substring(
+                                0,wdx.temperature.indexOf("."));
+                        wdx.temperature += " °C";
                         wdx.temperature_min = nde.getAttribute("min")+" °C";
                         wdx.temperature_max = nde.getAttribute("max")+" °C";
 
@@ -212,21 +232,6 @@ public class WeatherContentManager {
                     }
                     currentChild = currentChild.getNextSibling();
                 }
-
-
-                //String period = "";
-
-
-                /*for (int i = 0; i < 5; i < 5)
-                {
-                    wd.location = "Miami, FL";
-                    wd.temperature = "100F";
-                    wd.pressure = "100psi";
-                    wd.description = "Windy";
-                    wd.humidity = "83%";
-                    wd.wind = "33 m/s NW";
-                }*/
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -235,7 +240,7 @@ public class WeatherContentManager {
 
         @Override
         protected void onPostExecute(ForecastData forecastData) {
-            Log.d("DBG", "Weather Data retrieved succesfully");
+            Log.d("DBG", "Weather Data retrieved successfully");
         }
     }
 
@@ -246,6 +251,9 @@ public class WeatherContentManager {
         longitude = -21.89541;
         forecastData = new ForecastData();
         forecastData.current_weather = new WeatherData();
+        forecastData.current_weather.icon = "01d"; // Default icon code in case data is not yet
+                                                   // available
+
         forecastData.prolonged_forecast = new ArrayList<Pair<String,WeatherData>>();
         updateLocation();
     }
@@ -254,6 +262,9 @@ public class WeatherContentManager {
         return forecastData;
     }
 
+    /* This method updates the location used in the app. Note that when using the emulator
+    * it will rely on last known location, so use a google maps first, just to be sure the
+    * emulator has some known location. */
     private void updateLocation()
     {
         try {
