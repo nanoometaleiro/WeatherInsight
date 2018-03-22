@@ -2,32 +2,31 @@ package is.stokkur.weatherinsight;
 
 import android.Manifest;
 import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.res.XmlResourceParser;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.AsyncTask;
-import android.provider.Settings;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.content.PermissionChecker;
 import android.util.Log;
 import android.util.Pair;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
-import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.BufferedReader;
-//import java.io.File;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -102,46 +101,7 @@ public class WeatherContentManager {
                 String response = sb.toString();
 
                 //Log.d("DBG", response);
-
-                DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-                DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-                InputSource is = new InputSource(new StringReader(response));
-                Document dom = dBuilder.parse(is);
-
-                NodeList ndl = dom.getElementsByTagName("temperature");
-                Element nd = (Element) ndl.item(0);
-                forecastData.current_weather.temperature = nd.getAttribute("value");
-                forecastData.current_weather.temperature =
-                        forecastData.current_weather.temperature.substring(
-                                0,forecastData.current_weather.temperature.indexOf("."));
-                forecastData.current_weather.temperature+=" °C";
-                forecastData.current_weather.temperature_min = nd.getAttribute("min")+" °C";
-                forecastData.current_weather.temperature_max = nd.getAttribute("max")+" °C";
-
-                ndl = dom.getElementsByTagName("city");
-                nd = (Element) ndl.item(0);
-                forecastData.current_weather.location = nd.getAttribute("name");
-
-                ndl = dom.getElementsByTagName("weather");
-                nd = (Element) ndl.item(0);
-                forecastData.current_weather.description = nd.getAttribute("value");
-                forecastData.current_weather.icon = nd.getAttribute("icon");
-
-                ndl = dom.getElementsByTagName("speed");
-                nd = (Element) ndl.item(0);
-                forecastData.current_weather.wind = nd.getAttribute("value")+" m/s ";
-
-                ndl = dom.getElementsByTagName("direction");
-                nd = (Element) ndl.item(0);
-                forecastData.current_weather.wind += nd.getAttribute("code");
-
-                ndl = dom.getElementsByTagName("humidity");
-                nd = (Element) ndl.item(0);
-                forecastData.current_weather.humidity = nd.getAttribute("value")+nd.getAttribute("unit");
-
-                ndl = dom.getElementsByTagName("pressure");
-                nd = (Element) ndl.item(0);
-                forecastData.current_weather.pressure = nd.getAttribute("value")+" "+nd.getAttribute("unit");
+                parseCurrentWeatherResponse(response);
 
                 /*
                 * This is an example of the extended forecast message response from the service
@@ -178,60 +138,8 @@ public class WeatherContentManager {
                 response = sb2.toString();
 
                 //Log.d("DBG", response);
+                parseExtendedForecastResponse(response);
 
-                is = new InputSource(new StringReader(response));
-                dom = dBuilder.parse(is);
-
-                ndl = dom.getElementsByTagName("forecast");
-                nd = (Element) ndl.item(0);
-
-                forecastData.prolonged_forecast.clear();
-                Node currentChild = nd.getFirstChild();
-                String period;
-                while (currentChild != null) {
-                    if (currentChild.getNodeType() == Node.ELEMENT_NODE) {
-                        Element e = (Element) currentChild;
-                        WeatherData wdx = new WeatherData();
-                        period = e.getAttribute("from");
-                        period = period.replace('T',' ');
-
-                        NodeList ndx = e.getElementsByTagName("temperature");
-                        Element nde = (Element) ndx.item(0);
-                        wdx.temperature = nde.getAttribute("value");
-                        wdx.temperature = wdx.temperature.substring(
-                                0,wdx.temperature.indexOf("."));
-                        wdx.temperature += " °C";
-                        wdx.temperature_min = nde.getAttribute("min")+" °C";
-                        wdx.temperature_max = nde.getAttribute("max")+" °C";
-
-                        ndx = e.getElementsByTagName("humidity");
-                        nde = (Element) ndx.item(0);
-                        wdx.humidity = nde.getAttribute("value")+nde.getAttribute("unit");
-
-                        ndx = e.getElementsByTagName("symbol");
-                        nde = (Element) ndx.item(0);
-                        wdx.icon = nde.getAttribute("var");
-                        wdx.description = nde.getAttribute("name");
-
-                        ndx = e.getElementsByTagName("windSpeed");
-                        nde = (Element) ndx.item(0);
-                        wdx.wind = nde.getAttribute("mps")+" m/s ";
-
-                        ndx = e.getElementsByTagName("windDirection");
-                        nde = (Element) ndx.item(0);
-                        wdx.wind += nde.getAttribute("code");
-
-                        ndx = e.getElementsByTagName("pressure");
-                        nde = (Element) ndx.item(0);
-                        wdx.pressure = nde.getAttribute("value")+" "+nd.getAttribute("unit");
-
-                        wdx.location = forecastData.current_weather.location;
-
-                        forecastData.prolonged_forecast.add(
-                                 new Pair<>(period,wdx));
-                    }
-                    currentChild = currentChild.getNextSibling();
-                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -241,6 +149,126 @@ public class WeatherContentManager {
         @Override
         protected void onPostExecute(ForecastData forecastData) {
             Log.d("DBG", "Weather Data retrieved successfully");
+        }
+    }
+
+    private void parseExtendedForecastResponse(String response) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            InputSource is = new InputSource(new StringReader(response));
+            Document dom = dBuilder.parse(is);
+
+            NodeList ndl = dom.getElementsByTagName("forecast");
+            Element nd = (Element) ndl.item(0);
+
+            forecastData.prolonged_forecast.clear();
+            Node currentChild = nd.getFirstChild();
+            String period;
+            while (currentChild != null) {
+                if (currentChild.getNodeType() == Node.ELEMENT_NODE) {
+                    Element e = (Element) currentChild;
+                    WeatherData wdx = new WeatherData();
+                    period = e.getAttribute("from");
+                    period = period.replace('T', ' ');
+
+                    NodeList ndx = e.getElementsByTagName("temperature");
+                    Element nde = (Element) ndx.item(0);
+                    wdx.temperature = nde.getAttribute("value");
+                    if (wdx.temperature.contains(".")) {
+                        wdx.temperature = wdx.temperature.substring(
+                                0, wdx.temperature.indexOf("."));
+                    }
+                    wdx.temperature += " °C";
+                    wdx.temperature_min = nde.getAttribute("min") + " °C";
+                    wdx.temperature_max = nde.getAttribute("max") + " °C";
+
+                    ndx = e.getElementsByTagName("humidity");
+                    nde = (Element) ndx.item(0);
+                    wdx.humidity = nde.getAttribute("value") + nde.getAttribute("unit");
+
+                    ndx = e.getElementsByTagName("symbol");
+                    nde = (Element) ndx.item(0);
+                    wdx.icon = nde.getAttribute("var");
+                    wdx.description = nde.getAttribute("name");
+
+                    ndx = e.getElementsByTagName("windSpeed");
+                    nde = (Element) ndx.item(0);
+                    wdx.wind = nde.getAttribute("mps") + " m/s ";
+
+                    ndx = e.getElementsByTagName("windDirection");
+                    nde = (Element) ndx.item(0);
+                    wdx.wind += nde.getAttribute("code");
+
+                    ndx = e.getElementsByTagName("pressure");
+                    nde = (Element) ndx.item(0);
+                    wdx.pressure = nde.getAttribute("value") + " " + nd.getAttribute("unit");
+
+                    wdx.location = forecastData.current_weather.location;
+
+                    forecastData.prolonged_forecast.add(
+                            new Pair<>(period, wdx));
+                }
+                currentChild = currentChild.getNextSibling();
+            }
+            if (forecastData.prolonged_forecast.size() == 40) { // Checks if the message is complete
+                saveCacheData(response, "extended.dat");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void parseCurrentWeatherResponse(String response) {
+        try {
+            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+            InputSource is = new InputSource(new StringReader(response));
+            Document dom = dBuilder.parse(is);
+
+            NodeList ndl = dom.getElementsByTagName("temperature");
+            Element nd = (Element) ndl.item(0);
+            forecastData.current_weather.temperature = nd.getAttribute("value");
+            if (forecastData.current_weather.temperature.contains(".")) {
+                forecastData.current_weather.temperature =
+                        forecastData.current_weather.temperature.substring(
+                                0, forecastData.current_weather.temperature.indexOf("."));
+            }
+            forecastData.current_weather.temperature += " °C";
+            forecastData.current_weather.temperature_min = nd.getAttribute("min") + " °C";
+            forecastData.current_weather.temperature_max = nd.getAttribute("max") + " °C";
+
+            ndl = dom.getElementsByTagName("city");
+            nd = (Element) ndl.item(0);
+            forecastData.current_weather.location = nd.getAttribute("name");
+
+            ndl = dom.getElementsByTagName("weather");
+            nd = (Element) ndl.item(0);
+            forecastData.current_weather.description = nd.getAttribute("value");
+            forecastData.current_weather.icon = nd.getAttribute("icon");
+
+            ndl = dom.getElementsByTagName("speed");
+            nd = (Element) ndl.item(0);
+            forecastData.current_weather.wind = nd.getAttribute("value") + " m/s ";
+
+            ndl = dom.getElementsByTagName("direction");
+            nd = (Element) ndl.item(0);
+            forecastData.current_weather.wind += nd.getAttribute("code");
+
+            ndl = dom.getElementsByTagName("humidity");
+            nd = (Element) ndl.item(0);
+            forecastData.current_weather.humidity = nd.getAttribute("value")
+                    + nd.getAttribute("unit");
+
+            ndl = dom.getElementsByTagName("pressure");
+            nd = (Element) ndl.item(0);
+            forecastData.current_weather.pressure = nd.getAttribute("value")
+                    + " " + nd.getAttribute("unit");
+            if (forecastData.current_weather.location != null) { // sanity check
+                saveCacheData(response, "weather.dat");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -256,6 +284,48 @@ public class WeatherContentManager {
 
         forecastData.prolonged_forecast = new ArrayList<Pair<String,WeatherData>>();
         updateLocation();
+        loadCachedData();
+    }
+
+    private void saveCacheData(String str, String fileName) {
+        try {
+            File file = new File(context.getCacheDir(), fileName);
+            file.createNewFile();
+            FileWriter writer = new FileWriter(file);
+            writer.write(str);
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private void loadCachedData() {
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(
+                    context.getCacheDir()+"/weather.dat"));
+            StringBuilder sb = new StringBuilder();
+            String line_f;
+            while ((line_f = br.readLine()) != null) {
+                sb.append(line_f + "\n");
+            }
+            br.close();
+            String response = sb.toString();
+            parseCurrentWeatherResponse(response);
+
+            br = new BufferedReader(new FileReader(context.getCacheDir()+"/extended.dat"));
+            sb = new StringBuilder();
+            while ((line_f = br.readLine()) != null) {
+                sb.append(line_f + "\n");
+            }
+            br.close();
+            response = sb.toString();
+            parseExtendedForecastResponse(response);
+
+        } catch (FileNotFoundException f) {
+            Log.d("DBG","No cached data found");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public ForecastData getCurrentForecast() {

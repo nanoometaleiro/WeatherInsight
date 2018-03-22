@@ -1,20 +1,13 @@
 package is.stokkur.weatherinsight;
 
 import android.Manifest;
-import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.provider.Settings;
-import android.support.annotation.IntDef;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.util.Pair;
 import android.view.View;
 import android.view.Menu;
@@ -26,9 +19,6 @@ import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import java.time.Instant;
-import java.time.MonthDay;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -55,14 +45,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         iv.setImageDrawable(ResourcesCompat.getDrawable(getResources(),
                 imageRes, null));
         TextView textView = (TextView) findViewById(R.id.textView_current);
-        textView.setText(forecastData.current_weather.location+"\n"
-                +forecastData.current_weather.description+"\n"
-                +forecastData.current_weather.temperature+"\n"
-                +"(Min: "+forecastData.current_weather.temperature_min+"/"
-                +"Max: "+forecastData.current_weather.temperature_max+")\n"
-                +"Pressure: "+forecastData.current_weather.pressure+"\n"
-                +"Humidity: "+forecastData.current_weather.humidity+"\n"
-                +"Wind: "+forecastData.current_weather.wind);
+        if (forecastData.current_weather.location == null) {
+            textView.setText("Loading...");
+            return;
+        } else {
+            textView.setText(forecastData.current_weather.location + "\n"
+                    + forecastData.current_weather.description + "\n"
+                    + forecastData.current_weather.temperature + "\n"
+                    + "(Min: " + forecastData.current_weather.temperature_min + "/"
+                    + "Max: " + forecastData.current_weather.temperature_max + ")\n"
+                    + "Pressure: " + forecastData.current_weather.pressure + "\n"
+                    + "Humidity: " + forecastData.current_weather.humidity + "\n"
+                    + "Wind: " + forecastData.current_weather.wind);
+        }
 
         // Update 4 upcoming days brief
         int filled = 0;
@@ -184,6 +179,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         wm = new WeatherContentManager(getApplicationContext());
+        forecastData = wm.getCurrentForecast();
+        refreshUi();
 
         // Trigger initial refresh
         scheduleRefreshUi();
@@ -192,7 +189,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void run() {
                 wm.refresh();
-                forecastData = wm.getCurrentForecast();
+                ForecastData fd = wm.getCurrentForecast();
+                if (fd.current_weather.location == null) {
+                    return;
+                }
                 runOnUiThread(new Runnable(){
                     @Override
                     public void run(){
