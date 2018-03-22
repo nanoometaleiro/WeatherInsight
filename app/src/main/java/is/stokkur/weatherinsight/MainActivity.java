@@ -3,18 +3,21 @@ package is.stokkur.weatherinsight;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -29,7 +32,24 @@ import java.util.TimerTask;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private WeatherContentManager wm;
+    private ForecastData forecastData;
     public static int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
+
+    private void refreshUi() {
+        String path = "@drawable/icon"+forecastData.current_weather.icon;
+        int imageRes = getResources().getIdentifier(path, null, getPackageName());
+        ImageView currentWeather = (ImageView) findViewById(R.id.imageView_current);
+        currentWeather.setImageDrawable(ResourcesCompat.getDrawable(getResources(),
+                imageRes, null));
+
+        /*findViewById(R.); // text view
+
+        Fill 4 upcomingdays for tomorrow, x y z // icone, temperatura. achar um jeito de achar o dia da semana
+        truncar temperatura
+
+        fill dropdown list with extended forecast
+        forecastData.prolonged_forecast.*/
+    }
 
     @Override
     public void onClick(View v) {
@@ -66,14 +86,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                Log.d("DBG", "Weather description: "+wm.getCurrentWeather().description);
                 wm.refresh();
-                //findViewById(R.)
+                forecastData = wm.getCurrentForecast();
+                runOnUiThread(new Runnable(){
+                    @Override
+                    public void run(){
+                        refreshUi();
+                    }
+                });
             }
         }, 10*1000, 10*60*1000); // 10 seconds before first run then every 10 minutes
-
-
-
     }
 
     @Override
